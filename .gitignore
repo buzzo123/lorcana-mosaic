@@ -2,6 +2,9 @@
 __pycache__/
 *.pyc
 *.egg-info/
-# mosaic outputs
-mosaic.jpg
-mosaic.json
+
+# generated mosaics are huge (10-20 MB each); the small previews in assets/ are committed
+/*.jpg
+/*.jpeg
+/*.png
+/*.json

@@ -11,7 +11,7 @@ from PIL import Image
 
 from . import library as lib
 from . import lorcast
-from .mosaic import MosaicOptions, build_mosaic, plan_grid
+from .mosaic import MosaicOptions, build_mosaic, physical_layout, plan_grid
 
 DEFAULT_CACHE = Path.home() / ".cache" / "lorcana-mosaic"
 
@@ -124,8 +124,20 @@ def cmd_build(args) -> None:
         print("most used         : " + "; ".join(f"{n} x{k}" for n, k in s["most_used"]))
 
     if args.manifest:
-        Path(args.manifest).write_text(json.dumps(result.manifest, indent=1))
+        phys = physical_layout(cols, rows, crop_box, tw, gap=args.gap)
+        doc = {
+            "source": str(args.target),
+            "cards_per_side": {"cols": cols, "rows": rows},
+            "cards_total": cols * rows,
+            "distinct_cards": s["distinct_cards_used"],
+            "crop": {"preset": None if args.crop_box else args.crop, "box": list(crop_box)},
+            "physical": phys,
+            "cells": result.manifest,
+        }
+        Path(args.manifest).write_text(json.dumps(doc, indent=1))
         print(f"manifest          : {args.manifest}")
+        print(f"real size         : {phys['visible_m'][0]:.2f} x {phys['visible_m'][1]:.2f} m visible "
+              f"({phys['layout']}, {phys['cards_per_m2']:.0f} cards/m2)")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -177,7 +189,7 @@ def main(argv: list[str] | None = None) -> None:
     b.add_argument("--gap", type=int, default=0, help="px gap between cards")
     b.add_argument("--bg", default="#101010", help="background colour behind the gaps")
     b.add_argument("--seed", type=int, default=None)
-    b.add_argument("--manifest", help="write a JSON list of which card goes where")
+    b.add_argument("--manifest", help="write a JSON with which card goes where, plus grid size and real-world dimensions")
     _add_filter_args(b)
     b.set_defaults(func=cmd_build)
 

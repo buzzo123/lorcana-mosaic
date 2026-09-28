@@ -26,7 +26,7 @@ import numpy as np
 from PIL import Image
 
 from .colors import image_to_lab
-from .library import Library, _crop
+from .library import CARD_MM, Library, _crop
 
 
 @dataclass
@@ -56,6 +56,54 @@ class MosaicResult:
     image: Image.Image
     manifest: list[dict]
     stats: dict = field(default_factory=dict)
+
+
+def physical_layout(
+    cols: int,
+    rows: int,
+    crop_box: tuple[float, float, float, float],
+    tile_width: int,
+    gap: int = 0,
+    card_mm: tuple[float, float] = CARD_MM,
+) -> dict:
+    """How big the mosaic would be if built with real cards.
+
+    With `--crop full` each cell is a whole card and the grid pitch is the card
+    itself. With a cropped window the cards have to overlap - each one hides the
+    text box of its neighbour, like roof shingles - so the pitch shrinks to the
+    visible window and only the outermost cards stick out.
+    """
+    left, top, right, bottom = crop_box
+    card_w, card_h = card_mm
+    win_w, win_h = (right - left) * card_w, (bottom - top) * card_h
+
+    # --gap is in output pixels; one tile spans the visible window
+    mm_per_px = win_w / max(1, int(tile_width))
+    gap_mm = int(gap) * mm_per_px
+    pitch_w, pitch_h = win_w + gap_mm, win_h + gap_mm
+
+    # first to last visible window: N pitches minus the trailing gap
+    visible_w, visible_h = cols * pitch_w - gap_mm, rows * pitch_h - gap_mm
+    # the edge cards are not overlapped, so they show their hidden margins too
+    total_w = visible_w + (1.0 - (right - left)) * card_w
+    total_h = visible_h + (1.0 - (bottom - top)) * card_h
+
+    overlap_w = max(0.0, card_w - pitch_w)
+    overlap_h = max(0.0, card_h - pitch_h)
+    r2 = lambda v: round(v, 2)
+    return {
+        "card_mm": [r2(card_w), r2(card_h)],
+        "cropped": crop_box != (0.0, 0.0, 1.0, 1.0),
+        "tile_mm": [r2(win_w), r2(win_h)],
+        "pitch_mm": [r2(pitch_w), r2(pitch_h)],
+        "gap_mm": r2(gap_mm),
+        "overlap_mm": [r2(overlap_w), r2(overlap_h)],
+        "layout": "shingled" if (overlap_w or overlap_h) else "flat",
+        "visible_mm": [r2(visible_w), r2(visible_h)],
+        "total_mm": [r2(total_w), r2(total_h)],
+        "visible_m": [r2(visible_w / 1000), r2(visible_h / 1000)],
+        "cards_per_m2": round(cols * rows / (visible_w * visible_h / 1e6), 1),
+    }
 
 
 def _target_features(target: Image.Image, cols: int, rows: int, grid: int) -> np.ndarray:

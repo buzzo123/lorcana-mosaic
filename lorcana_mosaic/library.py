@@ -22,6 +22,11 @@ CROP_PRESETS: dict[str, tuple[float, float, float, float]] = {
     "art-wide": (0.04, 0.04, 0.96, 0.62),
 }
 
+# Physical size of a real card: standard TCG stock, 63x88 mm. Matches the
+# 1468x2048 aspect of the Lorcast scans, so the crop fractions above map
+# directly onto millimetres.
+CARD_MM: tuple[float, float] = (63.0, 88.0)
+
 
 def check_avif() -> None:
     if not features.check("avif"):
