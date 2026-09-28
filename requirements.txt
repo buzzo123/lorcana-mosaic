@@ -1,0 +1,5 @@
+# Pillow 11.3+ ships AVIF support, which Lorcast images need.
+# On older Pillow, add: pillow-avif-plugin
+Pillow>=11.3
+numpy>=1.24
+requests>=2.28
